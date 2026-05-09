@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { LiveAPIProvider } from "../contexts/LiveAPIContext";
 import { LiveClientOptions } from "../types";
 import MeditationGuide from "../components/meditation/MeditationGuide";
-import { WellnessProvider } from "@/context/wellness-context";
+import { CopilotShell } from "@/components/copilot-shell";
 import { WellnessShell } from "@/components/wellness-shell";
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY ?? "";
@@ -39,9 +39,9 @@ function HomeContent() {
               <MeditationGuide />
             </div>
           ) : (
-            <WellnessProvider>
+            <CopilotShell>
               <WellnessShell />
-            </WellnessProvider>
+            </CopilotShell>
           )}
         </LiveAPIProvider>
       </div>

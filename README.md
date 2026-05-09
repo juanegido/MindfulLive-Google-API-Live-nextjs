@@ -91,6 +91,13 @@ The v2 Gemini tool vocabulary is split by phase:
 
 Tool calls are handled in `src/components/wellness-live-bridge.tsx`, which validates basic argument shape, dispatches reducer actions, and immediately returns tool responses to Gemini Live.
 
-## CopilotKit Status
+## CopilotKit Runtime
 
-The reference architecture targets a CopilotKit/A2UI renderer setup. This repo currently implements the A2UI-shaped local surfaces and Gemini Live bridge without adding CopilotKit runtime packages, so the app builds cleanly with the dependencies already present. The next step is to add the CopilotKit puppet runtime once the package versions are installed and verified.
+The v2 app mounts CopilotKit as a required rendering/runtime layer:
+
+- `src/components/copilot-shell.tsx` wraps the v2 experience with `<CopilotKit>`, `createA2UIMessageRenderer`, and `viewerTheme`.
+- `src/app/api/copilotkit/[[...slug]]/route.ts` exposes the CopilotKit runtime endpoint with a minimal puppet `BuiltInAgent`.
+- `src/components/wellness-copilot-bridge.tsx` registers wellness frontend tools and the HITL plan approval tool with CopilotKit.
+- `src/components/wellness-live-bridge.tsx` keeps Gemini Live as the conversational brain and mirrors Gemini tool calls through `copilotkit.runTool({ followUp: false })`.
+
+This means Gemini Live drives the conversation, while CopilotKit provides the tool runtime, HITL registration, and A2UI-compatible rendering layer.

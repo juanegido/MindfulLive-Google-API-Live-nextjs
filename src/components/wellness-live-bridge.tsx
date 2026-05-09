@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { LiveServerToolCall, Modality } from "@google/genai";
+import { useCopilotKit } from "@copilotkit/react-core/v2";
 import { useLiveAPIContext } from "@/contexts/LiveAPIContext";
 import { useWellness } from "@/context/wellness-context";
 import { WELLNESS_SYSTEM_INSTRUCTION } from "@/lib/system-instruction";
@@ -12,6 +13,7 @@ import type { PlanProposal, WellnessActivityType } from "@/types";
 export function WellnessLiveBridge() {
   const { client, setConfig, setModel } = useLiveAPIContext();
   const { state, dispatch } = useWellness();
+  const { copilotkit } = useCopilotKit();
 
   useEffect(() => {
     setModel("gemini-3.1-flash-live-preview");
@@ -59,7 +61,7 @@ export function WellnessLiveBridge() {
     return () => {
       client.off("toolcall", onToolCall);
     };
-  }, [client, dispatch, state.pendingProposal, state.sessionHistory]);
+  }, [client, copilotkit, dispatch, state.pendingProposal, state.sessionHistory]);
 
   return null;
 
@@ -68,6 +70,8 @@ export function WellnessLiveBridge() {
       case "propose_wellness_plan": {
         const proposal = parseProposal(args);
         dispatch({ type: "SET_PENDING_PROPOSAL", proposal });
+        runCopilotTool("render_plan_approval", proposal);
+        runCopilotTool("approve_wellness_plan", proposal);
         return { status: "awaiting_user_input", proposalId: proposal.id };
       }
 
@@ -78,6 +82,8 @@ export function WellnessLiveBridge() {
           id: args.proposalId ?? state.pendingProposal?.id,
         });
         dispatch({ type: "SET_PENDING_PROPOSAL", proposal });
+        runCopilotTool("render_plan_approval", proposal);
+        runCopilotTool("approve_wellness_plan", proposal);
         return { status: "awaiting_user_input", proposalId: proposal.id };
       }
 
@@ -108,10 +114,15 @@ export function WellnessLiveBridge() {
         const activityType = activityArg(args, "activityType");
         const durationSeconds = numberArg(args, "durationSeconds");
         dispatch({ type: "START_ACTIVITY", activityType, durationSeconds });
+        runCopilotTool("render_activity_start", {
+          activityType,
+          durationSeconds,
+        });
         return { status: "ok" };
       }
 
       case "update_activity_widget": {
+        runCopilotTool("render_activity_update", args);
         dispatch({
           type: "UPDATE_ACTIVITY",
           patch: {
@@ -132,6 +143,7 @@ export function WellnessLiveBridge() {
       }
 
       case "complete_wellness_activity": {
+        runCopilotTool("render_activity_complete", args);
         dispatch({
           type: "COMPLETE_ACTIVITY",
           completionQuality: stringArg(args, "completionQuality"),
@@ -141,11 +153,13 @@ export function WellnessLiveBridge() {
       }
 
       case "cancel_wellness_activity": {
+        runCopilotTool("render_activity_cancel", args);
         dispatch({ type: "CANCEL_ACTIVITY", reason: stringArg(args, "reason") });
         return { status: "ok" };
       }
 
       case "emit_analysis_summary": {
+        runCopilotTool("render_analysis_summary", args);
         dispatch({
           type: "UPSERT_ANALYSIS_WIDGET",
           widget: {
@@ -180,6 +194,7 @@ export function WellnessLiveBridge() {
       }
 
       case "emit_next_recommendation": {
+        runCopilotTool("render_next_recommendation", args);
         dispatch({
           type: "UPSERT_ANALYSIS_WIDGET",
           widget: {
@@ -197,6 +212,20 @@ export function WellnessLiveBridge() {
       default:
         return { status: "ignored", name };
     }
+  }
+
+  function runCopilotTool(name: string, parameters: Record<string, unknown>) {
+    void copilotkit
+      .runTool({
+        name,
+        parameters,
+        followUp: false,
+      })
+      .catch((error) => {
+        const message =
+          error instanceof Error ? error.message : "CopilotKit tool failed";
+        dispatch({ type: "SET_ERROR", code: name, message });
+      });
   }
 }
 
