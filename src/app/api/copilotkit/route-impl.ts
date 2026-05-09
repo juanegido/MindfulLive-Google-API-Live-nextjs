@@ -6,8 +6,6 @@ import {
 } from "@copilotkit/runtime/v2";
 import { handle } from "hono/vercel";
 
-export const runtime = "nodejs";
-
 const requestedModel = process.env.COPILOT_MODEL?.trim();
 const openaiKey = process.env.OPENAI_API_KEY?.trim();
 const googleKey = process.env.GOOGLE_API_KEY?.trim();

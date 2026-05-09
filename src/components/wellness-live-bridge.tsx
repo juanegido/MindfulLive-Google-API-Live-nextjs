@@ -70,7 +70,6 @@ export function WellnessLiveBridge() {
       case "propose_wellness_plan": {
         const proposal = parseProposal(args);
         dispatch({ type: "SET_PENDING_PROPOSAL", proposal });
-        runCopilotTool("render_plan_approval", proposal);
         runCopilotTool("approve_wellness_plan", proposal);
         return { status: "awaiting_user_input", proposalId: proposal.id };
       }
@@ -82,7 +81,6 @@ export function WellnessLiveBridge() {
           id: args.proposalId ?? state.pendingProposal?.id,
         });
         dispatch({ type: "SET_PENDING_PROPOSAL", proposal });
-        runCopilotTool("render_plan_approval", proposal);
         runCopilotTool("approve_wellness_plan", proposal);
         return { status: "awaiting_user_input", proposalId: proposal.id };
       }
@@ -215,6 +213,12 @@ export function WellnessLiveBridge() {
   }
 
   function runCopilotTool(name: string, parameters: Record<string, unknown>) {
+    const tool = copilotkit.getTool({ toolName: name });
+
+    if (!tool) {
+      return;
+    }
+
     void copilotkit
       .runTool({
         name,
